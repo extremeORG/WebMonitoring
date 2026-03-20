@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 import subprocess
 import socket
 import os
+import re
 
 app = FastAPI()
 
@@ -31,13 +32,42 @@ def get_cpu_load():
     try:
         load_avg = os.getloadavg()[0]
         cpu_count = os.cpu_count() or 1
-        # Вычисляем процент нагрузки относительно количества ядер
         percent = min(100, (load_avg / cpu_count) * 100)
         return round(percent, 1)
     except Exception:
         return 0.0
 
-app.get("/", response_class=HTMLResponse)
+def get_ram_usage():
+    """Получает использование RAM из /proc/meminfo"""
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            lines = f.readlines()
+        
+        mem_total = 0
+        mem_available = 0
+        
+        for line in lines:
+            if line.startswith('MemTotal:'):
+                mem_total = int(line.split()[1]) # В kB
+            elif line.startswith('MemAvailable:'):
+                mem_available = int(line.split()[1]) # В kB
+        
+        mem_used = mem_total - mem_available
+        percent = (mem_used / mem_total) * 100 if mem_total > 0 else 0
+        
+        # Конвертируем в ГБ для красивого вывода
+        used_gb = round((mem_used / 1024 / 1024), 2)
+        total_gb = round((mem_total / 1024 / 1024), 2)
+        
+        return {
+            "percent": round(percent, 1),
+            "used_gb": used_gb,
+            "total_gb": total_gb
+        }
+    except Exception:
+        return {"percent": 0.0, "used_gb": 0, "total_gb": 0}
+
+@app.get("/", response_class=HTMLResponse)
 async def dashboard():
     hostname = socket.gethostname()
     
@@ -46,6 +76,7 @@ async def dashboard():
     hysteria = check_service("hysteria-server")
     
     cpu_load = get_cpu_load()
+    ram_data = get_ram_usage()
     
     all_ok = mtproxy["status"] == "active" and hysteria["status"] == "active"
     global_color = "#00ff88" if all_ok else "#ffaa00"
@@ -72,7 +103,12 @@ async def dashboard():
             .cpu-section {{ text-align: center; }}
             .cpu-value {{ font-size: 2.5rem; font-weight: bold; color: #fff; margin: 10px 0; }}
             .progress-bg {{ background: #333; height: 10px; border-radius: 5px; overflow: hidden; }}
-            .progress-fill {{ height: 100%; background: linear-gradient(90deg, #00c6ff, #0072ff); transition: width 0.5s ease; }}
+            .progress-fill {{ height: 100%; transition: width 0.5s ease; }}
+            /* Градиент для CPU */
+            .cpu-fill {{ background: linear-gradient(90deg, #00c6ff, #0072ff); }}
+            /* Градиент для RAM */
+            .ram-fill {{ background: linear-gradient(90deg, #f12711, #f5af19); }}
+            
             small {{ display: block; text-align: center; color: #555; margin-top: 30px; font-size: 0.8rem; }}
         </style>
     </head>
@@ -99,14 +135,40 @@ async def dashboard():
 
             <!-- CPU Load -->
             <div class="card cpu-section">
-                <div class="label">🖥 Нагрузка CPU</div>
+                <div class="label">🖥️ Нагрузка CPU</div>
                 <div class="cpu-value">{cpu_load}%</div>
                 <div class="progress-bg">
-                    <div class="progress-fill" style="width: {cpu_load}%"></div>
+                    <div class="progress-fill cpu-fill" style="width: {cpu_load}%"></div>
                 </div>
                 <div style="font-size: 0.8rem; color: #666; margin-top: 8px;">Средняя за 1 мин</div>
             </div>
+
+            <!-- RAM Usage (НОВОЕ) -->
+            <div class="card cpu-section">
+                <div class="label">💾 Оперативная память (RAM)</div>
+                <div class="cpu-value">{ram_data['percent']}%</div>
+                <div style="font-size: 0.9rem; color: #ccc; margin-bottom: 5px;">
+                    {ram_data['used_gb']} ГБ / {ram_data['total_gb']} ГБ
+                </div>
+                <div class="progress-bg">
+                    <div class="progress-fill ram-fill" style="width: {ram_data['percent']}%"></div>
+                </div>
+            </div>
+
+            <small>Автообновление через <span id="timer">5</span> сек</small>
         </div>
+
+        <script>
+            let seconds = 5;
+            const timerElem = document.getElementById('timer');
+            setInterval(() => {{
+                seconds--;
+                timerElem.innerText = seconds;
+                if (seconds <= 0) {{
+                    window.location.reload();
+                }}
+            }}, 1000);
+        </script>
     </body>
     </html>
     """
