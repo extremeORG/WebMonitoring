@@ -17,9 +17,8 @@ def run_command(cmd):
         return str(e), -1
 
 def check_service(service_name):
-    # Используем nsenter для запуска systemctl в namespace хоста
-    # nsenter -t 1 -m -p systemctl is-active ...
-    cmd = f"nsenter -t 1 -m -p systemctl is-active {service_name}"
+    # Теперь systemctl будет работать напрямую, так как мы вне контейнера
+    cmd = f"systemctl is-active {service_name}"
     output, code = run_command(cmd)
     status = "active" if output == "active" else "inactive"
     color = "#00c853" if status == "active" else "#ff1744"  # Ярко-зелёный и ярко-красный
@@ -74,7 +73,7 @@ async def dashboard(request: Request):
             mtproxy["status"] == "active" and
             len(containers) > 0
     )
-    global_color = "#00c853" if all_ok else "#ffab00"  # Ярко-зелёный и ярко-оранжевый
+    global_color = "#00c853" if all_ok else "#ffab00"  # Ярко-зелёный и ярко-ор
     global_msg = "Все системы в норме 🟢" if all_ok else "Внимание: Проблемы 🔴"
 
     return templates.TemplateResponse("index.html", {
@@ -89,3 +88,7 @@ async def dashboard(request: Request):
         "cpu_load": resources["cpu_load"],
         "ram": resources["ram"],
     })
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
