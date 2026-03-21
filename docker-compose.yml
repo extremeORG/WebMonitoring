@@ -1,38 +1,14 @@
-version: '3.8'
-
 services:
-  # Веб-интерфейс Nginx Proxy Manager
-  nginx-proxy-manager:
-    image: 'jc21/nginx-proxy-manager:latest'
-    restart: unless-stopped
-    ports:
-      # HTTP
-      - '8000:80'
-      # HTTPS
-      - '8443:443'
-      # Web UI (админка)
-      - '81:81'
-    volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
-    depends_on:
-      - server-monitor
-
-  # Ваш монитор
   server-monitor:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: server-monitor
     restart: unless-stopped
-    expose: # expose вместо ports, чтобы не открывать наружу
-      - "8000"
+    ports:
+      - "8000:8000"  # <-- Только этот порт
     volumes:
       - /run/systemd/system:/run/systemd/system
     environment:
       - SYSTEMD_OFFLINE=0
     privileged: true
-
-networks:
-  default:
-    driver: bridge
