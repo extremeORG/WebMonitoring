@@ -47,6 +47,7 @@ async def dashboard(request: Request):
         "api_cpu": metrics["fastapi"]["cpu_load"],
         "api_ram": metrics["fastapi"]["ram_usage"],
         "api_health": metrics["fastapi"]["health"],
+        "api_current_uptime": metrics["fastapi"]["current_uptime"],  # Добавляем новое значение
         # Docker
         "docker_active": metrics["docker"]["active"],
         "docker_count": metrics["docker"]["containers"],
@@ -84,6 +85,7 @@ async def refresh_metrics():
             "enabled": metrics["proxy"]["enabled"]
         },
         "fastapi": {
+            "uptime": metrics["fastapi"]["current_uptime"],  # Обновляем ключ
             "cpu": metrics["fastapi"]["cpu_load"],
             "ram": metrics["fastapi"]["ram_usage"],
             "health": metrics["fastapi"]["health"]
