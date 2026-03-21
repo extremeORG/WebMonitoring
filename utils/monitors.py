@@ -75,42 +75,24 @@ def get_system_info() -> Dict[str, str]:
     }
 
 def check_vpn_status() -> Dict:
-    """Статус WireGuard VPN"""
+    """Статус Hysteria VPN"""
     result = {
         "active": False,
-        "peers": 0,
+        "peers": 0,  # Hysteria обычно не показывает активных пиров напрямую
         "traffic_in": "0 MB/s",
         "traffic_out": "0 MB/s",
         "load": 0
     }
     try:
-        # Проверка интерфейса wg0
-        wg_check = subprocess.run(
-            ["ip", "link", "show", "wg0"],
+        # Проверка статуса сервиса hysteria-server
+        status_check = subprocess.run(
+            ["systemctl", "is-active", "hysteria-server"],
             capture_output=True, text=True, timeout=3
         )
-        if wg_check.returncode == 0 and "wg0" in wg_check.stdout:
+        if status_check.returncode == 0 and status_check.stdout.strip() == "active":
             result["active"] = True
-            # Получение статистики WireGuard
-            wg_show = subprocess.run(
-                ["wg", "show", "wg0"],
-                capture_output=True, text=True, timeout=3
-            )
-            if wg_show.returncode == 0:
-                output = wg_show.stdout.lower()
-                # Подсчёт пиров
-                result["peers"] = output.count("peer:")
-                # Парсинг трафика (упрощённо)
-                for line in wg_show.stdout.split('\n'):
-                    if 'transfer:' in line.lower():
-                        parts = line.split('transfer:')
-                        if len(parts) > 1:
-                            traffic = parts[1].strip().split(',')
-                            if len(traffic) >= 2:
-                                result["traffic_in"] = _format_traffic(traffic[0])
-                                result["traffic_out"] = _format_traffic(traffic[1])
-            # Расчёт нагрузки на основе пиров
-            result["load"] = min(95, result["peers"] * 5 + 10)
+            result["load"] = min(95, psutil.cpu_percent(interval=0.1) * 0.5 + 10) # Примерная оценка
+
     except Exception:
         pass
     return result
