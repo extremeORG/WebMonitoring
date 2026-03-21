@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   server-dashboard:
     build:
@@ -15,7 +17,7 @@ services:
       - SYSTEMD_OFFLINE=0
     privileged: true
     pid: "host"
-    network_mode: "host"
+    network_mode: "host"  # <-- Добавлено
     command: >
       sh -c "
         mount --bind /host/proc /proc &&
