@@ -17,10 +17,13 @@ def run_command(cmd):
         return str(e), -1
 
 def check_service(service_name):
-    output, code = run_command(f"systemctl is-active {service_name}")
+    # Используем nsenter для запуска systemctl в namespace хоста
+    # nsenter -t 1 -m -p systemctl is-active ...
+    cmd = f"nsenter -t 1 -m -p systemctl is-active {service_name}"
+    output, code = run_command(cmd)
     status = "active" if output == "active" else "inactive"
-    color = "#00ff88" if status == "active" else "#ff4444"
-    icon = "✅" if status == "active" else "❌"
+    color = "#00c853" if status == "active" else "#ff1744"  # Ярко-зелёный и ярко-красный
+    icon = "🟢" if status == "active" else "🔴"
     return {"name": service_name, "status": status, "color": color, "icon": icon}
 
 def get_docker_containers():
@@ -71,7 +74,7 @@ async def dashboard(request: Request):
             mtproxy["status"] == "active" and
             len(containers) > 0
     )
-    global_color = "#00ff88" if all_ok else "#ffaa00"
+    global_color = "#00c853" if all_ok else "#ffab00"  # Ярко-зелёный и ярко-оранжевый
     global_msg = "Все системы в норме 🟢" if all_ok else "Внимание: Проблемы 🔴"
 
     return templates.TemplateResponse("index.html", {

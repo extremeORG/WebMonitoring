@@ -15,6 +15,7 @@ services:
       - SYSTEMD_OFFLINE=0
     privileged: true
     pid: "host"
+    network_mode: "host"
     command: >
       sh -c "
         mount --bind /host/proc /proc &&
