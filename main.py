@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from utils.monitors import get_all_metrics, get_cpu_load, get_ram_usage, get_uptime
 
@@ -18,6 +19,15 @@ app = FastAPI(
     title="Ubuntu Core Monitor",
     description="Cyberpunk-style system dashboard",
     lifespan=lifespan
+)
+
+# Добавляем CORS для доступа с другого домена
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://ismail.soon.it:8443"], # Или ["*"] для теста
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 templates = Jinja2Templates(directory="templates")
