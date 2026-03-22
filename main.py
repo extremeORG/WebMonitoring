@@ -31,7 +31,6 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory="templates")
 
-# В функции dashboard():
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Главная страница с реальными данными"""
@@ -88,24 +87,29 @@ async def dashboard(request: Request):
 
     return templates.TemplateResponse("dashboard.html", context)
 
-@app.get("/api/v1/status")
-async def api_status():
-    """JSON API для получения всех метрик"""
-    return get_all_metrics()
-
 @app.get("/api/v1/refresh")
 async def refresh_metrics():
     """API для обновления данных на фронтенде"""
     metrics = get_all_metrics()
     return {
         "vpn": {
-            "protocol": metrics["vpn"]["protocol"],
-            "peers": metrics["vpn"]["peers"],
-            "in": metrics["vpn"]["traffic_in"],
-            "out": metrics["vpn"]["traffic_out"],
-            "load": metrics["vpn"]["load"],
             "active": metrics["vpn"]["active"],
-            "delay": metrics["vpn"]["delay"],
+            "protocol": metrics["vpn"]["protocol"],
+            "xray": {
+                "active": metrics["vpn"]["xray"]["active"],
+                "peers": metrics["vpn"]["xray"]["peers"],
+                "in": metrics["vpn"]["xray"]["traffic_in"],
+                "out": metrics["vpn"]["xray"]["traffic_out"],
+                "delay": metrics["vpn"]["xray"]["delay"],
+                "load": metrics["vpn"]["xray"]["load"]
+            },
+            "hysteria": {
+                "active": metrics["vpn"]["hysteria"]["active"],
+                "peers": metrics["vpn"]["hysteria"]["peers"],
+                "in": metrics["vpn"]["hysteria"]["traffic_in"],
+                "out": metrics["vpn"]["hysteria"]["traffic_out"],
+                "load": metrics["vpn"]["hysteria"]["load"]
+            }
         },
         "uptime": metrics["system"]["uptime"],
         "os_name": metrics["system"]["info"]["full_name"],
@@ -115,7 +119,7 @@ async def refresh_metrics():
             "enabled": metrics["proxy"]["enabled"]
         },
         "fastapi": {
-            "uptime": metrics["fastapi"]["current_uptime"],  # Обновляем ключ
+            "uptime": metrics["fastapi"]["current_uptime"],
             "cpu": metrics["fastapi"]["cpu_load"],
             "ram": metrics["fastapi"]["ram_usage"],
             "health": metrics["fastapi"]["health"]
