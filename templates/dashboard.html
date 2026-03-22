@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UBUNTU CORE // MONITOR</title>
+    <title>SERVER MONITOR</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
@@ -85,12 +85,18 @@
         .core-text p { font-size: 0.8rem; opacity: 0.7; }
 
         .module {
-            background: var(--glass); backdrop-filter: blur(10px);
+            background: var(--glass);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px; padding: 15px;
-            display: flex; flex-direction: column;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 2%;
+            display: flex;
+            flex-direction: column;
             justify-content: space-between;
-            transition: 0.3s; position: relative; overflow: hidden;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
         }
 
         .module:hover {
@@ -302,7 +308,7 @@
                         <span style="color: var(--primary); font-weight: bold;">⚡ XRay</span>
                         <span class="status-dot {% if xray_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     </div>
-                    <div class="stat-row"><span>Protocol:</span> <span>VLESS/VMess</span></div>
+                    <div class="stat-row"><span>Protocol:</span> <span>VLESS+Reality</span></div>
                     {% if xray_active %}
                     <div class="stat-row"><span>Delay:</span> <span id="xray-delay">{{ xray_delay }} ms</span></div>
                     {% endif %}
