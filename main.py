@@ -31,6 +31,7 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory="templates")
 
+# В функции dashboard():
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Главная страница с реальными данными"""
@@ -40,31 +41,45 @@ async def dashboard(request: Request):
         "request": request,
         # System Info
         "os_name": metrics["system"]["info"]["full_name"],
-        # VPN (обновлённый)
-        "vpn_protocol": metrics["vpn"]["protocol"],  # "XRay" или "Hysteria"
-        "vpn_peers": metrics["vpn"]["peers"],
-        "vpn_in": metrics["vpn"]["traffic_in"],
-        "vpn_out": metrics["vpn"]["traffic_out"],
-        "vpn_load": metrics["vpn"]["load"],
+
+        # VPN - XRay
+        "xray_active": metrics["vpn"]["xray"]["active"],
+        "xray_peers": metrics["vpn"]["xray"]["peers"],
+        "xray_in": metrics["vpn"]["xray"]["traffic_in"],
+        "xray_out": metrics["vpn"]["xray"]["traffic_out"],
+        "xray_delay": metrics["vpn"]["xray"]["delay"],
+        "xray_load": metrics["vpn"]["xray"]["load"],
+
+        # VPN - Hysteria
+        "hysteria_active": metrics["vpn"]["hysteria"]["active"],
+        "hysteria_peers": metrics["vpn"]["hysteria"]["peers"],
+        "hysteria_in": metrics["vpn"]["hysteria"]["traffic_in"],
+        "hysteria_out": metrics["vpn"]["hysteria"]["traffic_out"],
+        "hysteria_load": metrics["vpn"]["hysteria"]["load"],
+
+        # Общий статус
         "vpn_active": metrics["vpn"]["active"],
-        "vpn_delay": metrics["vpn"]["delay"],  # Только для XRay
-        "xray_active": metrics["vpn"]["xray_active"],
-        "hysteria_active": metrics["vpn"]["hysteria_active"],
+        "vpn_protocol": metrics["vpn"]["protocol"],
+
         # Uptime
         "uptime": metrics["system"]["uptime"],
+
         # Telegram Proxy
         "tg_requests": int(metrics["proxy"]["requests"]),
         "tg_latency": metrics["proxy"]["latency"],
         "proxy_enabled": metrics["proxy"]["enabled"],
+
         # FastAPI/System
         "api_cpu": metrics["fastapi"]["cpu_load"],
         "api_ram": metrics["fastapi"]["ram_usage"],
         "api_health": metrics["fastapi"]["health"],
-        "api_current_uptime": metrics["fastapi"]["current_uptime"],  # Добавляем новое значение
+        "api_current_uptime": metrics["fastapi"]["current_uptime"],
+
         # Docker
         "docker_active": metrics["docker"]["active"],
         "docker_count": metrics["docker"]["containers"],
         "docker_load": metrics["docker"]["load"],
+
         # System
         "cpu_load": metrics["system"]["cpu_load"],
         "ram_percent": metrics["system"]["ram"]["percent"],
@@ -122,11 +137,54 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": get_all_metrics()["timestamp"]}
 
-@app.get("/api/v1/docker")
-async def docker_info():
-    """Детальная информация о Docker"""
-    from utils.monitors import check_docker_status
-    return check_docker_status()
+@app.get("/api/v1/refresh")
+async def refresh_metrics():
+    """API для обновления данных на фронтенде"""
+    metrics = get_all_metrics()
+    return {
+        "vpn": {
+            "active": metrics["vpn"]["active"],
+            "protocol": metrics["vpn"]["protocol"],
+            "xray": {
+                "active": metrics["vpn"]["xray"]["active"],
+                "peers": metrics["vpn"]["xray"]["peers"],
+                "in": metrics["vpn"]["xray"]["traffic_in"],
+                "out": metrics["vpn"]["xray"]["traffic_out"],
+                "delay": metrics["vpn"]["xray"]["delay"],
+                "load": metrics["vpn"]["xray"]["load"]
+            },
+            "hysteria": {
+                "active": metrics["vpn"]["hysteria"]["active"],
+                "peers": metrics["vpn"]["hysteria"]["peers"],
+                "in": metrics["vpn"]["hysteria"]["traffic_in"],
+                "out": metrics["vpn"]["hysteria"]["traffic_out"],
+                "load": metrics["vpn"]["hysteria"]["load"]
+            }
+        },
+        "uptime": metrics["system"]["uptime"],
+        "os_name": metrics["system"]["info"]["full_name"],
+        "telegram": {
+            "requests": int(metrics["proxy"]["requests"]),
+            "latency": metrics["proxy"]["latency"],
+            "enabled": metrics["proxy"]["enabled"]
+        },
+        "fastapi": {
+            "uptime": metrics["fastapi"]["current_uptime"],
+            "cpu": metrics["fastapi"]["cpu_load"],
+            "ram": metrics["fastapi"]["ram_usage"],
+            "health": metrics["fastapi"]["health"]
+        },
+        "docker": {
+            "active": metrics["docker"]["active"],
+            "containers": metrics["docker"]["containers"],
+            "load": metrics["docker"]["load"]
+        },
+        "system": {
+            "cpu": metrics["system"]["cpu_load"],
+            "ram": metrics["system"]["ram"]["percent"]
+        },
+        "timestamp": metrics["timestamp"]
+    }
 
 if __name__ == "__main__":
     import uvicorn

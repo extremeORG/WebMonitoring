@@ -295,20 +295,39 @@
                     <span class="status-dot {% if vpn_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     VPN SERVER
                 </h2>
-                <div class="stat-row"><span>Protocol:</span> <span>{{ vpn_protocol }}</span></div>
 
-                {% if xray_active %}
-                <!-- XRay specific stats -->
-                <div class="stat-row"><span>Delay:</span> <span id="vpn-delay">{{ vpn_delay }} ms</span></div>
-                {% endif %}
+                <!-- XRay Section -->
+                <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.3);">
+                    <div class="stat-row" style="margin-bottom: 8px;">
+                        <span style="color: var(--primary); font-weight: bold;">⚡ XRay</span>
+                        <span class="status-dot {% if xray_active %}status-active{% else %}status-inactive{% endif %}"></span>
+                    </div>
+                    <div class="stat-row"><span>Protocol:</span> <span>VLESS/VMess</span></div>
+                    {% if xray_active %}
+                    <div class="stat-row"><span>Delay:</span> <span id="xray-delay">{{ xray_delay }} ms</span></div>
+                    {% endif %}
+                    <div class="stat-row"><span>Active Peers:</span> <span id="xray-peers">{{ xray_peers }}</span></div>
+                    <div class="stat-row"><span>Traffic In:</span> <span id="xray-in">{{ xray_in }}</span></div>
+                    <div class="stat-row"><span>Traffic Out:</span> <span id="xray-out">{{ xray_out }}</span></div>
+                </div>
 
-                <div class="stat-row"><span>Active Peers:</span> <span id="vpn-peers">{{ vpn_peers }}</span></div>
-                <div class="stat-row"><span>Traffic In:</span> <span id="vpn-in">{{ vpn_in }}</span></div>
-                <div class="stat-row"><span>Traffic Out:</span> <span id="vpn-out">{{ vpn_out }}</span></div>
+                <!-- Hysteria Section -->
+                <div>
+                    <div class="stat-row" style="margin-bottom: 8px;">
+                        <span style="color: var(--secondary); font-weight: bold;">🔥 Hysteria</span>
+                        <span class="status-dot {% if hysteria_active %}status-active{% else %}status-inactive{% endif %}"></span>
+                    </div>
+                    <div class="stat-row"><span>Protocol:</span> <span>QUIC</span></div>
+                    <div class="stat-row"><span>Active Peers:</span> <span id="hysteria-peers">{{ hysteria_peers }}</span></div>
+                    <div class="stat-row"><span>Traffic In:</span> <span id="hysteria-in">{{ hysteria_in }}</span></div>
+                    <div class="stat-row"><span>Traffic Out:</span> <span id="hysteria-out">{{ hysteria_out }}</span></div>
+                </div>
             </div>
             <div>
-                <div style="font-size: 0.7rem; margin-top:10px;">LOAD</div>
-                <div class="progress-bar"><div class="progress-fill" id="vpn-bar" style="width: {{ vpn_load }}%"></div></div>
+                <div style="font-size: 0.7rem; margin-top:10px;">COMBINED LOAD</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="vpn-bar" style="width: {{ (xray_load + hysteria_load) / 2 }}%"></div>
+                </div>
             </div>
         </div>
 
@@ -459,21 +478,27 @@
             const data = await response.json();
 
             // VPN (обновлённая логика)
-            document.getElementById('vpn-peers').textContent = data.vpn.peers;
-            document.getElementById('vpn-in').textContent = data.vpn.in;
-            document.getElementById('vpn-out').textContent = data.vpn.out;
-            document.getElementById('vpn-bar').style.width = data.vpn.load + '%';
-
-            // XRay-specific поля (если есть)
-            if (data.vpn.protocol === 'XRay') {
-                // Обновляем Protocol
-                document.querySelector('.mod-vpn .stat-row:nth-child(2) span:last-child').textContent = 'XRay';
-
-                // Обновляем Delay, если элементы существуют
-                const delayEl = document.getElementById('vpn-delay');
-                if (delayEl) {
-                    delayEl.textContent = data.vpn.delay + ' ms';
+            // VPN - XRay
+            if (document.getElementById('xray-peers')) {
+                document.getElementById('xray-peers').textContent = data.vpn.xray.peers;
+                document.getElementById('xray-in').textContent = data.vpn.xray.in;
+                document.getElementById('xray-out').textContent = data.vpn.xray.out;
+                if (data.vpn.xray.active && document.getElementById('xray-delay')) {
+                    document.getElementById('xray-delay').textContent = data.vpn.xray.delay + ' ms';
                 }
+            }
+
+            // VPN - Hysteria
+            if (document.getElementById('hysteria-peers')) {
+                document.getElementById('hysteria-peers').textContent = data.vpn.hysteria.peers;
+                document.getElementById('hysteria-in').textContent = data.vpn.hysteria.in;
+                document.getElementById('hysteria-out').textContent = data.vpn.hysteria.out;
+            }
+
+            // Combined load bar
+            if (document.getElementById('vpn-bar')) {
+                const combinedLoad = (data.vpn.xray.load + data.vpn.hysteria.load) / 2;
+                document.getElementById('vpn-bar').style.width = combinedLoad + '%';
             }
 
             // Uptime (теперь берется из ответа API)

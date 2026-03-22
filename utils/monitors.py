@@ -86,7 +86,6 @@ def check_xray_status() -> Dict:
         "load": 0
     }
     try:
-        # Проверка статуса сервиса xray
         status_check = subprocess.run(
             ["systemctl", "is-active", "xray"],
             capture_output=True, text=True, timeout=3
@@ -94,13 +93,11 @@ def check_xray_status() -> Dict:
         if status_check.returncode == 0 and status_check.stdout.strip() == "active":
             result["active"] = True
 
-            # Получение статистики через API XRay
             try:
                 response = requests.get("http://127.0.0.1:11111/debug/vars", timeout=5)
                 if response.status_code == 200:
                     data = response.json()
 
-                    # === Статистика трафика ===
                     stats = data.get("stats", {})
                     inbound_stats = stats.get("inbound", {})
                     user_stats = stats.get("user", {})
@@ -109,37 +106,31 @@ def check_xray_status() -> Dict:
                     total_downlink = 0
                     peer_count = 0
 
-                    # Суммируем трафик всех inbound
                     for name, values in inbound_stats.items():
                         if isinstance(values, dict):
                             total_uplink += values.get("uplink", 0)
                             total_downlink += values.get("downlink", 0)
 
-                    # Считаем активных пользователей (пиров)
                     for user, values in user_stats.items():
                         if isinstance(values, dict) and values.get("uplink", 0) > 0:
                             peer_count += 1
 
-                    # Преобразование байтов в МБ
                     result["traffic_in"] = f"{total_downlink / (1024*1024):.2f} MB"
                     result["traffic_out"] = f"{total_uplink / (1024*1024):.2f} MB"
                     result["peers"] = peer_count if peer_count > 0 else len(user_stats)
 
-                    # === Observatory (здоровье соединения) ===
                     observatory = data.get("observatory", {})
                     for tag, obs_data in observatory.items():
                         if isinstance(obs_data, dict):
                             result["delay"] = obs_data.get("delay", 0)
-                            break  # Берём первый доступный
+                            break
 
-                    # Расчёт нагрузки (на основе трафика + задержки)
                     traffic_load = min(50, (total_uplink + total_downlink) / 1000000 * 0.05)
                     latency_load = min(30, result["delay"] / 10) if result["delay"] > 0 else 0
                     result["load"] = min(95, traffic_load + latency_load + 15)
 
             except requests.RequestException as e:
                 print(f"XRay API error: {e}")
-                # Оставляем значения по умолчанию
 
     except Exception as e:
         print(f"XRay status check error: {e}")
@@ -147,58 +138,13 @@ def check_xray_status() -> Dict:
     return result
 
 
-def check_vpn_status() -> Dict:
-    """Объединённый статус всех VPN сервисов (Hysteria + XRay)"""
-    # Получаем статусы обоих сервисов
-    hysteria_status = _check_hysteria_status()
-    xray_status = check_xray_status()
-
-    # Приоритет: если XRay активен — используем его данные, иначе Hysteria
-    if xray_status["active"]:
-        return {
-            "active": True,
-            "protocol": "XRay",
-            "peers": xray_status["peers"],
-            "traffic_in": xray_status["traffic_in"],
-            "traffic_out": xray_status["traffic_out"],
-            "load": xray_status["load"],
-            "delay": xray_status["delay"],
-            "xray_active": True,
-            "hysteria_active": hysteria_status["active"]
-        }
-    elif hysteria_status["active"]:
-        return {
-            "active": True,
-            "protocol": "Hysteria",
-            "peers": hysteria_status["peers"],
-            "traffic_in": hysteria_status["traffic_in"],
-            "traffic_out": hysteria_status["traffic_out"],
-            "load": hysteria_status["load"],
-            "delay": 0,
-            "xray_active": False,
-            "hysteria_active": True
-        }
-    else:
-        return {
-            "active": False,
-            "protocol": "None",
-            "peers": 0,
-            "traffic_in": "0 MB",
-            "traffic_out": "0 MB",
-            "load": 0,
-            "delay": 0,
-            "xray_active": False,
-            "hysteria_active": False
-        }
-
-
-def _check_hysteria_status() -> Dict:
-    """Внутренняя функция для проверки Hysteria (оставляем для совместимости)"""
+def check_hysteria_status() -> Dict:
+    """Статус Hysteria VPN"""
     result = {
         "active": False,
         "peers": 0,
-        "traffic_in": "0 MB/s",
-        "traffic_out": "0 MB/s",
+        "traffic_in": "0 MB",
+        "traffic_out": "0 MB",
         "load": 0
     }
     try:
@@ -213,28 +159,19 @@ def _check_hysteria_status() -> Dict:
     except Exception:
         pass
     return result
-# def check_vpn_status() -> Dict:
-#     """Статус Hysteria VPN"""
-#     result = {
-#         "active": False,
-#         "peers": 0,  # Hysteria обычно не показывает активных пиров напрямую
-#         "traffic_in": "0 MB/s",
-#         "traffic_out": "0 MB/s",
-#         "load": 0
-#     }
-#     try:
-#         # Проверка статуса сервиса hysteria-server
-#         status_check = subprocess.run(
-#             ["systemctl", "is-active", "hysteria-server"],
-#             capture_output=True, text=True, timeout=3
-#         )
-#         if status_check.returncode == 0 and status_check.stdout.strip() == "active":
-#             result["active"] = True
-#             result["load"] = min(95, psutil.cpu_percent(interval=0.1) * 0.5 + 10) # Примерная оценка
-#
-#     except Exception:
-#         pass
-#     return result
+
+
+def check_vpn_status() -> Dict:
+    """Объединённый статус всех VPN сервисов (XRay + Hysteria)"""
+    xray_status = check_xray_status()
+    hysteria_status = check_hysteria_status()
+
+    return {
+        "active": xray_status["active"] or hysteria_status["active"],
+        "xray": xray_status,
+        "hysteria": hysteria_status,
+        "protocol": "XRay" if xray_status["active"] else ("Hysteria" if hysteria_status["active"] else "None")
+    }
 
 def _format_traffic(traffic_str: str) -> str:
     """Форматирование строки трафика"""
